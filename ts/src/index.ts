@@ -7,4 +7,4 @@ app.use(express.json());
 
 app.use(userRouter);
 
-app.listen(3001);
+app.listen(3002);

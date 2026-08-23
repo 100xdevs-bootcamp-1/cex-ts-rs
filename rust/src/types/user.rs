@@ -61,7 +61,8 @@ pub struct DespositResponse {
 
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BalanceResponse {
-    usd: u32,
-    assets: HashMap<String, u32>
+    pub usd_balance: u32,
+    pub stock_balances: HashMap<String, u32>
 }

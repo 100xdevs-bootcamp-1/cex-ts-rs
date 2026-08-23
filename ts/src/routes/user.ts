@@ -17,6 +17,9 @@ export const router = Router();
 let userIndex = 0;
 const users: User[] = [];
 
+const usdBalances: Map<number, number> = new Map();
+const stockBalances: Map<number, Map<String, number>> = new Map();
+
 router.post("/signup", (req, res) => {
     const body = req.body as SignupInput;
 
@@ -30,7 +33,8 @@ router.post("/signup", (req, res) => {
             password: body.password
         });
 
-        console.log(users.length);
+        usdBalances.set(userIndex, 0);
+        stockBalances.set(userIndex, new Map());
 
         res.json({
             message: "Successfully signed up"
@@ -66,16 +70,17 @@ router.post("/signin", (req, res) => {
 });
 
 router.get("/balance", authMiddleware, (req: AuthRequest, res) => {
-    const userId = req.userId;
-    console.log(userId);
-    res.sendStatus(200);
+    const userId = req.userId!;
+    res.json({
+        usdBalance: usdBalances.get(userId),
+        stockBalances: stockBalances.get(userId)
+    });
 });
 
 router.post("/onramp", authMiddleware, (req: AuthRequest, res) => {
-    const userId = req.userId;
+    const userId = req.userId!;
     const body = req.body as OnRampRequest;
-    console.log(userId);
-    console.log(body.qty);
+    usdBalances.set(userId, usdBalances.get(userId)! + body.qty);
     res.sendStatus(200);
 });
 
