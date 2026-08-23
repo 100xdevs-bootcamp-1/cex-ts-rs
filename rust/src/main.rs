@@ -1,54 +1,13 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Mutex};
 
-use actix::dev::Request;
-use actix_web::{App, HttpResponse, HttpServer, Responder, post, web::{self, Json, get}};
-use serde::{Deserialize, Serialize};
+use actix_web::{App, HttpServer, web::{self}};
 
-#[derive(Serialize, Deserialize)]
-struct SignupInput {
-    pub username: String,
-    pub password: String
-}
+use crate::{routes::user::{balance, sign_in, sign_up}, types::user::User};
 
-#[derive(Serialize, Deserialize)]
-struct SignupResponse {
-    message: String
-}
+pub mod types;
+pub mod routes;
+pub mod middleware;
 
-#[post("/signup")]
-async fn sign_up(body: Json<SignupInput>, app_state: web::Data<AppState>) -> impl Responder {
-    let mut users = app_state.users.lock().unwrap();
-    let mut user_index = app_state.user_index.lock().unwrap();
-
-    let user_found = users.iter().find(|u| u.username == body.username);
-
-    if user_found.is_none() {
-        *user_index = *user_index + 1;
-        users.push(User {
-            id: user_index.clone(),
-            username: body.username.clone(),
-            password: body.password.clone()
-        });
-
-
-        println!("{}", users.len());
-        drop(users);
-
-        HttpResponse::Ok().json(SignupResponse {
-            message: String::from("Successfully signed up")
-        })
-    } else {
-        HttpResponse::Unauthorized().json(SignupResponse {
-            message: String::from("User already exists")
-        })
-    }
-}
-
-struct User {
-    id: u32,
-    username: String,
-    password: String
-}
 
 struct AppState {
     user_index: Mutex<u32>,
@@ -66,6 +25,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(app_state.clone())
             .service(sign_up)
+            .service(sign_in)
+            .service(balance)
     })
     .bind(("127.0.0.1", 3001))?
     .run()
