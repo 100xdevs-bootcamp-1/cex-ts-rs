@@ -5,6 +5,7 @@ import { authMiddleware, JWT_SECRET, type AuthRequest } from "../middleware";
 import type {
     Claims,
     DepositRequest,
+    DespositResponse,
     OnRampRequest,
     SigninInput,
     SignupInput,
@@ -71,9 +72,10 @@ router.post("/signin", (req, res) => {
 
 router.get("/balance", authMiddleware, (req: AuthRequest, res) => {
     const userId = req.userId!;
+    const balances = stockBalances.get(userId) ?? new Map();
     res.json({
         usdBalance: usdBalances.get(userId),
-        stockBalances: stockBalances.get(userId)
+        stockBalances: Object.fromEntries(balances)
     });
 });
 
@@ -85,11 +87,15 @@ router.post("/onramp", authMiddleware, (req: AuthRequest, res) => {
 });
 
 router.post("/deposit/:asset_symbol", authMiddleware, (req: AuthRequest, res) => {
-    const userId = req.userId;
-    const symbol = req.params.asset_symbol;
+    const userId = req.userId!;
+    const symbol = req.params.asset_symbol as string;
     const body = req.body as DepositRequest;
-    console.log(userId);
-    console.log(symbol);
-    console.log(body.qty);
-    res.sendStatus(200);
+
+    const balances = stockBalances.get(userId)!;
+    const existingBalance = balances.get(symbol) ?? 0;
+    balances.set(symbol, existingBalance + body.qty);
+
+    res.json({
+        message: "Successfully deposited"
+    });
 });

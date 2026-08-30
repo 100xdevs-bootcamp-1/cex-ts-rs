@@ -56,7 +56,7 @@ pub struct OnRampResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct DespositResponse {
-    message: String    
+    pub message: String
 }
 
 

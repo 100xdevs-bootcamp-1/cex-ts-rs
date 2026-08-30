@@ -5,7 +5,7 @@ use actix_web::{HttpResponse, Responder, get, post, web::{self, Json}};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
 
-use crate::{AppState, middleware::AuthUser, types::user::{BalanceResponse, Claims, DepositRequest, OnRampRequest, SigninInput, SigninResponse, SignupInput, SignupResponse, User}};
+use crate::{AppState, middleware::AuthUser, types::user::{BalanceResponse, Claims, DepositRequest, DespositResponse, OnRampRequest, SigninInput, SigninResponse, SignupInput, SignupResponse, User}};
 
 #[post("/signup")]
 async fn sign_up(body: Json<SignupInput>, app_state: web::Data<AppState>) -> impl Responder {
@@ -71,7 +71,6 @@ pub async fn sign_in(app_state: web::Data<AppState>, body: Json<SigninInput>) ->
 
 #[get("/balance")]
 pub async fn balance(app_state: web::Data<AppState>, user: AuthUser) -> impl Responder {
-    println!("hi there hello");
     let user_id = user.0;
     let usd_balance = app_state.usd_balances.lock().unwrap().get(&user_id).unwrap_or(&0).clone();
     let stock_balances = app_state.stock_balances.lock().unwrap().get(&user_id).unwrap_or(&HashMap::new()).clone();
@@ -96,22 +95,28 @@ pub async fn onramp(app_state: web::Data<AppState>, user: AuthUser, body: Json<O
 }
 
 #[post("/deposit/{asset_symbol}")]
-pub async fn desposit(user: AuthUser, symbol: web::Path<String>, body: Json<DepositRequest>) -> impl Responder {
+pub async fn deposit(app_state: web::Data<AppState>, user: AuthUser, symbol: web::Path<String>, body: Json<DepositRequest>) -> impl Responder {
     let user_id = user.0;
-    println!("{}", user_id);
-    println!("{}", symbol);
-    println!("{}", body.qty);
+    let symbol = symbol.into_inner();
+
+    let mut stock_balances = app_state.stock_balances.lock().unwrap();
+    let user_balances = stock_balances.entry(user_id).or_insert_with(HashMap::new);
+    let existing_balance = user_balances.get(&symbol).unwrap_or(&0).clone();
+    user_balances.insert(symbol, existing_balance + body.qty);
+
+    HttpResponse::Ok().json(DespositResponse {
+        message: String::from("Successfully deposited")
+    })
+}
+
+// order endpoint.
+#[post("/order")]
+pub async fn order() -> impl Responder {
     HttpResponse::Ok()
 }
 
-// order endpoint. 
-#[post("/order")]
-pub async fn order() {
-
-}
-
 #[post("/cancel")]
-pub async fn cancel() {
-
+pub async fn cancel() -> impl Responder {
+    HttpResponse::Ok()
 }
 

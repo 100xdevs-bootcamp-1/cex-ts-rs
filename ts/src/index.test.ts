@@ -67,3 +67,34 @@ test("onramp works as expected", async () => {
     expect(balancesResponse.data.usdBalance).toBe(100);
 
 })
+
+test("deposit works as expected", async () => {
+    const username = "harkirat" + Math.random();
+    await axios.post(`${BACKEND_URL}/signup`, {
+        username: username,
+        password: "123123"
+    })
+
+    const response = await axios.post(`${BACKEND_URL}/signin`, {
+        username: username,
+        password: "123123"
+    })
+
+    const token = response.data.token;
+
+    await axios.post(`${BACKEND_URL}/deposit/SOL`, {
+        qty: 10
+    }, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    })
+
+    const balancesResponse = await axios.get(`${BACKEND_URL}/balance`, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    })
+
+    expect(balancesResponse.data.stockBalances.SOL).toBe(10);
+})
