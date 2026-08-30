@@ -1,11 +1,12 @@
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::mpsc};
 
 use actix_web::{HttpResponse, Responder, get, post, web::{self, Json}};
 use chrono::{Duration, Utc};
+use futures::channel::oneshot;
 use jsonwebtoken::{EncodingKey, Header, encode};
 
-use crate::{AppState, middleware::AuthUser, types::user::{BalanceResponse, Claims, DepositRequest, DespositResponse, OnRampRequest, SigninInput, SigninResponse, SignupInput, SignupResponse, User}};
+use crate::{AppState, BalanceMessage::Onramp, middleware::AuthUser, types::user::{BalanceResponse, Claims, DepositRequest, DespositResponse, OnRampRequest, SigninInput, SigninResponse, SignupInput, SignupResponse, User}};
 
 #[post("/signup")]
 async fn sign_up(body: Json<SignupInput>, app_state: web::Data<AppState>) -> impl Responder {
@@ -22,8 +23,7 @@ async fn sign_up(body: Json<SignupInput>, app_state: web::Data<AppState>) -> imp
             password: body.password.clone()
         });
 
-        let mut usd_balances = app_state.usd_balances.lock().unwrap();
-        usd_balances.insert(user_index.clone(), 0);
+        app_state.balances_tx.send(Onramp(user_index.clone(), 0));
         
         let mut stock_balances = app_state.stock_balances.lock().unwrap();
         stock_balances.insert(user_index.clone(), HashMap::new());
@@ -72,10 +72,13 @@ pub async fn sign_in(app_state: web::Data<AppState>, body: Json<SigninInput>) ->
 #[get("/balance")]
 pub async fn balance(app_state: web::Data<AppState>, user: AuthUser) -> impl Responder {
     let user_id = user.0;
-    let usd_balance = app_state.usd_balances.lock().unwrap().get(&user_id).unwrap_or(&0).clone();
+    let (tx, rx) = oneshot::channel::<u32>();
+    app_state.balances_tx.send(crate::BalanceMessage::GetBalance(user_id, tx));
+
+    let usd_balance = rx.await.unwrap();
+
     let stock_balances = app_state.stock_balances.lock().unwrap().get(&user_id).unwrap_or(&HashMap::new()).clone();
 
-    println!("hi thte balance endpoint");
     HttpResponse::Ok().json(BalanceResponse {
         usd_balance: usd_balance,
         stock_balances: stock_balances
@@ -85,11 +88,7 @@ pub async fn balance(app_state: web::Data<AppState>, user: AuthUser) -> impl Res
 #[post("/onramp")]
 pub async fn onramp(app_state: web::Data<AppState>, user: AuthUser, body: Json<OnRampRequest>) -> impl Responder {
     let user_id = user.0;
-    let mut balances = app_state.usd_balances.lock().unwrap();
-
-    let existing_balance = balances.get(&user_id).unwrap_or(&0).clone();
-
-    balances.insert(user_id, existing_balance + body.qty);
+    app_state.balances_tx.send(crate::BalanceMessage::Onramp(user_id, body.qty));
 
     HttpResponse::Ok()
 }

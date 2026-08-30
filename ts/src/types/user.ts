@@ -35,6 +35,14 @@ export interface DepositRequest {
     qty: number;
 }
 
+export interface OrderRequest {
+    // type: "market" | "limit", 
+    side: "bid" | "ask", 
+    qty: number, 
+    price: number,
+    asset: "sol" | "eth"
+}
+
 export interface OnRampResponse {
     message: string;
 }
